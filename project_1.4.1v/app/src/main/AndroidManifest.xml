@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- 카메라 권한 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-feature android:name="android.hardware.camera" />
+    <!--
+    블루투스 기본 권한: 안드로이드 11 (API 30) 이하 버전에서
+    블루투스 통신(데이터 전송 등)을 위해 필요합니다.
+    -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <!--
+    블루투스 관리 권한: 안드로이드 11 (API 30) 이하 버전에서
+    블루투스 장치를 검색, 페어링, 설정 변경 등을 위해 필요합니다.
+    -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <!--
+    블루투스 스캔 권한: 안드로이드 12 (API 31) 이상 버전에서
+    주변 블루투스 장치를 검색하기 위해 명시적으로 요청해야 하는 권한입니다.
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!--
+    블루투스 연결 권한: 안드로이드 12 (API 31) 이상 버전에서
+    이미 페어링된 블루투스 장치나 스캔으로 찾은 장치에 연결하기 위해
+    명시적으로 요청해야 하는 권한입니다.
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!--
+    위치 권한: 안드로이드 11 (API 30) 이하 버전에서 블루투스 장치 스캔 시 필요합니다.
+    블루투스 스캔을 통해 사용자의 대략적인 위치를 유추할 수 있다는 이유로 요청됩니다.
+    상위 버전 (API 31 이상)에서는 BLUETOOTH_SCAN 권한이 이 역할을 대체합니다.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Medion">
+        <activity
+            android:name=".PredictionActivity"
+            android:exported="false" />
+        <activity
+            android:name=".OptionActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AnalysisResultActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SelfDiagnosisActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SignupActivity"
+            android:exported="false" />
+        <activity
+            android:name=".LoginActivity"
+            android:exported="false" />
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
