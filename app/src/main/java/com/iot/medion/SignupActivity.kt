@@ -1,5 +1,6 @@
 package com.iot.medion
 
+import android.content.ContentValues
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
@@ -9,6 +10,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import java.lang.Exception
 
 class SignupActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,12 +73,44 @@ class SignupActivity : AppCompatActivity() {
             }
 
             // --- 모든 유효성 검사를 통과했을 때 ---
-            Toast.makeText(this@SignupActivity, "회원가입 성공! 로그인 해주세요.", Toast.LENGTH_LONG).show()
+
+            //1. DB Instance 생성
+            val dbHelper = DatabaseHelper(this)
+            val db = dbHelper.writableDatabase
+
+            // 2. 비밀번호 해싱
+            val hashedPassword = PasswordHasher.hash(password)
+
+            //3. DB에 넣을 데이터 준비
+            val values = ContentValues().apply {
+                put(DatabaseHelper.UserDBEntry.COLUMN_USERNAME, email)
+                put(DatabaseHelper.UserDBEntry.COLUMN_PASSWORD, hashedPassword)
+            }
+
+            try {
+                val newRowId = db.insert(DatabaseHelper.UserDBEntry.TABLE_NAME, null, values)
+
+                if (newRowId == -1L) {
+                    Toast.makeText(this@SignupActivity, "회원가입에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@SignupActivity, "회원가입 성공! 로그인 해주세요.", Toast.LENGTH_LONG).show()
+
+                    val intent = Intent(this@SignupActivity, LoginActivity::class.java)
+                    startActivity(intent)
+                    finish()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@SignupActivity, "데이터베이스 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
+                e.printStackTrace()
+            } finally {
+                db.close()
+            }
+
 
             // 회원가입 성공 후 LoginActivity로 이동
-            val intent = Intent(this@SignupActivity, LoginActivity::class.java)
-            startActivity(intent)
-            finish() // 현재 SignupActivity는 종료합니다. (뒤로 가기 누르면 다시 안 보이도록)
+//            val intent = Intent(this@SignupActivity, LoginActivity::class.java)
+//            startActivity(intent)
+//            finish() // 현재 SignupActivity는 종료합니다. (뒤로 가기 누르면 다시 안 보이도록)
         }
     }
 }

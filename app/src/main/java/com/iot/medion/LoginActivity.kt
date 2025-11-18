@@ -1,5 +1,6 @@
 package com.iot.medion
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
@@ -11,8 +12,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 class LoginActivity : AppCompatActivity() {
-    private val MASTER_ID = "master"
-    private val MASTER_PW = "1234"
+    // private val MASTER_ID = "master"
+    // private val MASTER_PW = "1234"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,7 +44,7 @@ class LoginActivity : AppCompatActivity() {
 
         //'로그인' 버튼 (이제 buttonLogin 변수가 XML의 buttonLogin2를 가리킵니다) 클릭 시 유효성 검사 로직
         buttonLogin.setOnClickListener { // buttonLogin 변수에 할당된 (ID: buttonLogin2) 버튼에 리스너를 붙입니다.
-            val inputId = editTextId.text.toString()
+            val inputId = editTextId.text.toString().trim()
             val inputPw = editTextPassword.text.toString()
 
             // 1. 입력 필드가 비어있는지 먼저 확인
@@ -56,12 +57,56 @@ class LoginActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // 2. 마스터 아이디와 비밀번호가 일치하는지 확인
-            if (inputId == MASTER_ID && inputPw == MASTER_PW) {
-                Toast.makeText(this@LoginActivity, "마스터 로그인 성공!", Toast.LENGTH_SHORT).show()
+            val dbHelper = DatabaseHelper(this)
+            val db = dbHelper.readableDatabase // 읽기 가능한 DB
+
+            // 입력된 비밀번호를 해싱
+            val hashedInputPw = PasswordHasher.hash(inputPw)
+
+            // 조회할 컬럼 정의 (user_id가 필요!)
+            val projection = arrayOf(
+                DatabaseHelper.UserDBEntry.COLUMN_USER_ID,
+                DatabaseHelper.UserDBEntry.COLUMN_USERNAME
+            )
+
+            // WHERE 절 정의 (이메일과 해시된 비밀번호가 일치하는가)
+            val selection = "${DatabaseHelper.UserDBEntry.COLUMN_USERNAME} = ? AND " +
+                    "${DatabaseHelper.UserDBEntry.COLUMN_PASSWORD} = ?"
+            val selectionArgs = arrayOf(inputId, hashedInputPw)
+
+            // 쿼리 실행
+            val cursor = db.query(
+                DatabaseHelper.UserDBEntry.TABLE_NAME, // 테이블
+                projection,                            // 가져올 컬럼
+                selection,                             // WHERE 절
+                selectionArgs,                         // WHERE 값
+                null, null, null
+            )
+
+            // 쿼리 결과 확인
+            var loginSuccess = false
+            var loggedInUserId: Long = -1 // 로그인한 사용자의 ID를 저장할 변수
+
+            if (cursor.moveToFirst()) { // 일치하는 사용자가 있다면
+                loginSuccess = true
+                // @SuppressLint("Range") // 경고 무시 (컬럼 이름으로 직접 가져오기)
+                // 컬럼 인덱스를 가져와서 사용하는 것이 더 안전합니다.
+                val userIdColumnIndex = cursor.getColumnIndex(DatabaseHelper.UserDBEntry.COLUMN_USER_ID)
+                if (userIdColumnIndex != -1) {
+                    loggedInUserId = cursor.getLong(userIdColumnIndex)
+                }
+            }
+            cursor.close() // 커서 닫기
+            db.close()     // DB 닫기
+
+            // 아이디와 비밀번호가 일치하는지 확인
+            if (loginSuccess && loggedInUserId != -1L) {
+                Toast.makeText(this@LoginActivity, "로그인 성공!", Toast.LENGTH_SHORT).show()
 
                 // 로그인 성공 후 자가진단 화면으로 이동
                 val successIntent = Intent(this@LoginActivity, SelfDiagnosisActivity::class.java)
+                successIntent.putExtra("USER_ID", loggedInUserId)
+
                 startActivity(successIntent)
                 finish() // 로그인 화면은 뒤로 가기 눌러도 다시 보이지 않도록 종료
             } else {

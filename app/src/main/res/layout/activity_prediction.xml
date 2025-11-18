@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    tools:context=".PredictionActivity">
+
+    <!-- 1. 상단 제목을 표시할 TextView -->
+<TextView
+    android:id="@+id/titleTextView"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="상처 이미지 분석 결과"
+    android:textSize="24sp"
+    android:textStyle="bold"
+    app:layout_constraintTop_toTopOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    android:layout_marginTop="24dp" />
+
+    <!-- 2. 선택된 상처 이미지를 표시할 ImageView -->
+<ImageView
+    android:id="@+id/imageView_wound_prediction"
+    android:layout_width="300dp"
+    android:layout_height="300dp"
+    android:scaleType="centerCrop"
+    android:background="#E0E0E0"
+    android:contentDescription="분석할 상처 이미지"
+    app:layout_constraintTop_toBottomOf="@id/titleTextView"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    android:layout_marginTop="24dp" />
+
+    <!-- 3. AI 모델의 예측 결과(상처 종류)를 표시할 TextView -->
+<TextView
+    android:id="@+id/textView_prediction_result"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="분석 중..."
+    android:textSize="20sp"
+    android:textColor="@android:color/holo_blue_dark"
+    android:textStyle="bold"
+    app:layout_constraintTop_toBottomOf="@id/imageView_wound_prediction"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    android:layout_marginTop="24dp" />
+
+    <!-- 4. AI 모델의 예측 확률을 표시할 TextView -->
+<TextView
+    android:id="@+id/textView_confidence"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text=""
+    android:textSize="16sp"
+    android:textColor="@android:color/darker_gray"
+    app:layout_constraintTop_toBottomOf="@id/textView_prediction_result"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    android:layout_marginTop="8dp" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>

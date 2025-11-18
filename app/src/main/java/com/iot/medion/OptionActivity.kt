@@ -23,12 +23,14 @@ class OptionActivity : AppCompatActivity() {
         val buttonDiagnoseAgain = findViewById<Button>(R.id.buttonDiagnoseAgain)
         val buttonLogout = findViewById<Button>(R.id.buttonLogout)
         val buttonExitApp = findViewById<Button>(R.id.buttonExitApp)
+        val currentUserId = intent.getLongExtra("USER_ID", -1L)
 
         // --- 클릭 리스너 설정 ---
 
         // 1. '다시 진단하기' 버튼
         buttonDiagnoseAgain.setOnClickListener {
             val intent = Intent(this@OptionActivity, SelfDiagnosisActivity::class.java)
+            intent.putExtra("USER_ID", currentUserId)
             // 새로운 진단을 위해 SelfDiagnosisActivity를 새로 시작합니다.
             startActivity(intent)
             finish() // 현재 OptionActivity는 종료합니다.
