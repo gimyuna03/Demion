@@ -1,6 +1,16 @@
 package com.iot.medion
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.ActivityCompat
@@ -30,6 +40,8 @@ import android.widget.RadioButton
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.ContentValues // ContentValues import 추가
+import androidx.annotation.RequiresPermission
+import java.util.UUID
 
 class SelfDiagnosisActivity : AppCompatActivity() {
 
@@ -63,6 +75,97 @@ class SelfDiagnosisActivity : AppCompatActivity() {
     private lateinit var predictionResultLauncher: ActivityResultLauncher<Intent>
 
     private val REQUEST_BLUETOOTH_PERMISSIONS = 1
+
+    // Bluetooth 관련 변수
+    private val bluetoothAdapter: BluetoothAdapter? by lazy {
+        (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter
+    }
+
+    private val bleScanner: BluetoothLeScanner? by lazy {
+        bluetoothAdapter?.bluetoothLeScanner
+    }
+
+    private var bleGatt: BluetoothGatt? = null
+
+    // 스캔 콜백 정의
+    private val scanCallback = object : ScanCallback() {
+        @SuppressLint("MissingPermission")
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            super.onScanResult(callbackType, result)
+            // "My_MCU_Name"을 실제 MCU 블루투스 이름으로 변경
+            if (result.device.name == "My_MCU_Name") {
+                bleScanner?.stopScan(this) // 스캔 중지
+                Log.d("BLE", "기기 찾음! ${result.device.address}")
+                Toast.makeText(this@SelfDiagnosisActivity, "온도계 찾음. 연결 시도중...", Toast.LENGTH_SHORT).show()
+
+                // 기기 연결
+                result.device.connectGatt(this@SelfDiagnosisActivity, false, gattCallback)
+            }
+        }
+
+        override fun onScanFailed(errorCode: Int) {
+            Log.e("BLE", "스캔 실패: $errorCode")
+            Toast.makeText(this@SelfDiagnosisActivity, "기기 스캔 실패.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // GATT 콜백 정의
+    private val gattCallback = object : BluetoothGattCallback() {
+        @SuppressLint("MissingPermission")
+        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                Log.d("BLE", "GATT 연결 성공. 서비스 탐색 시작.")
+                bleGatt = gatt
+                gatt.discoverServices()
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                Log.d("BLE", "GATT 연결 끊김.")
+                bleGatt = null
+            }
+        }
+
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d("BLE", "서비스 탐색 성공.")
+
+                // UUID 확인
+                val SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb") // 예: Health Thermometer Service
+                val CHAR_UUID = UUID.fromString("00002A1C-0000-1000-8000-00805f9b34fb") // 예: Temperature Measurement
+
+                val service = gatt.getService(SERVICE_UUID)
+                val characteristic = service?.getCharacteristic(CHAR_UUID)
+
+                if (characteristic != null) {
+                    gatt.readCharacteristic(characteristic)
+                } else {
+                    Log.e("BLE", "필요한 서비스/특성을 찾을 수 없음")
+                }
+            }
+        }
+
+        // 데이터 읽기 완료
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+        override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                val data = characteristic.value
+                Log.d("BLE", "데이터 수신: ${data.joinToString(" ")}")
+
+                // 이 파싱 로직은 MCU 문서에 따라 다릅니다! (이것은 가상의 예시입니다)
+                val tempValue = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 1)
+                currentTemperature = tempValue.toDouble()
+
+                // UI 업데이트
+                runOnUiThread {
+                    textViewTemperatureValue.text = "현재 온도: %.2f°C".format(currentTemperature)
+                    Toast.makeText(this@SelfDiagnosisActivity, "온도 측정 완료!", Toast.LENGTH_SHORT).show()
+                    Log.d("SelfDiagnosis", "온도 측정 완료: $currentTemperature°C")
+                }
+
+                gatt.close()
+                bleGatt = null
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -155,19 +258,25 @@ class SelfDiagnosisActivity : AppCompatActivity() {
 
         // ==== "온도 측정" 버튼 클릭 리스너 설정 ====
         buttonMeasureTemperature.setOnClickListener {
-            if (checkBluetoothPermissionsAreGranted()) {
-                Toast.makeText(this, "블루투스 기기 연결 중...", Toast.LENGTH_SHORT).show()
-                // 블루투스 연결 및 측정 로직 (현재는 가상으로 3초 후 결과 반환)
-                Handler(Looper.getMainLooper()).postDelayed({
-                    currentTemperature = Random.nextDouble(36.0, 39.0)
-                    textViewTemperatureValue.text = "현재 온도: %.2f °C".format(currentTemperature)
-                    Toast.makeText(this, "온도 측정 완료!", Toast.LENGTH_SHORT).show()
-                    Log.d("SelfDiagnosis", "온도 측정 완료: $currentTemperature °C")
-                }, 3000)
-            } else {
-                Toast.makeText(this, "블루투스 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
-                checkBluetoothPermissions() // 권한 요청
-            }
+            val randomTemperature = kotlin.random.Random.nextDouble(36.0, 40.0) // kotlin.random.Random 사용
+            currentTemperature = randomTemperature
+            val formattedTemperature = String.format("%.2f", randomTemperature)
+            textViewTemperatureValue.text = "현재 온도: $formattedTemperature °C"
+
+            // 실제로 체온 스캔하는 코드
+//            if (checkBluetoothPermissionsAreGranted()) {
+//                Toast.makeText(this, "온도계 스캔 시작...", Toast.LENGTH_SHORT).show()
+//
+//                // 권한 체크를 통과했으므로 강제로 경고 무시
+//                try {
+//                    startScanWithPermissionCheck()
+//                } catch (e: SecurityException) {
+//                    Toast.makeText(this, "권한 오류 발생: ${e.message}", Toast.LENGTH_SHORT).show()
+//                }
+//            } else {
+//                Toast.makeText(this, "블루투스 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
+//                checkBluetoothPermissions() // 권한 요청
+//            }
         }
 
         // ==== "기록 제출" 버튼 클릭 리스너 설정 ====
@@ -220,6 +329,7 @@ class SelfDiagnosisActivity : AppCompatActivity() {
                     val intent = Intent(this, AnalysisResultActivity::class.java).apply {
                         putExtra("RECORD_ID", recordId)
                         putExtra("USER_ID", currentUserId)
+                        putExtra("IMAGE_URI", currentImagePath)
                         // AnalysisResultActivity가 직접 DB에서 image_path를 조회하도록 합니다.
                     }
                     startActivity(intent)
@@ -387,6 +497,16 @@ class SelfDiagnosisActivity : AppCompatActivity() {
             "Laceration" -> "상처 부위를 깨끗이 소독하고 거즈로 덮은 후, 병원에서 적절한 치료를 받으세요."
             else -> "전문가의 진단을 권장합니다."
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startScanWithPermissionCheck() {
+        bleScanner?.startScan(scanCallback)
+
+        // 10초 후 자동 중지
+        Handler(Looper.getMainLooper()).postDelayed({
+            bleScanner?.stopScan(scanCallback)
+        }, 10000) // 1000ms(1초)는 너무 짧습니다. 10000ms(10초)로 늘리세요.
     }
 
 } // --- SelfDiagnosisActivity 클래스 끝 ---

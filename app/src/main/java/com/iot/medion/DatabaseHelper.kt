@@ -51,8 +51,17 @@ class DatabaseHelper(private val context: Context) :
         const val COLUMN_DESCRIPTION = "description"   // (TEXT)
     }
 
+    object DiseasePrecautionDBEntry : BaseColumns {
+        const val TABLE_NAME = "DiseasePrecautionDB"
+        const val COLUMN_DISEASE_NAME = "disease_name"
+        const val COLUMN_PRECAUTION_1 = "precaution_1"
+        const val COLUMN_PRECAUTION_2 = "precaution_2"
+        const val COLUMN_PRECAUTION_3 = "precaution_3"
+        const val COLUMN_PRECAUTION_4 = "precaution_4"
+    }
+
     companion object {
-        const val DATABASE_VERSION = 4
+        const val DATABASE_VERSION = 5
         const val DATABASE_NAME = "Medion.db"
         // --- 테이블 생성 SQL 문 ---
 
@@ -101,6 +110,16 @@ class DatabaseHelper(private val context: Context) :
                     "${DiseaseInfoDBEntry.COLUMN_DISEASE_NAME} TEXT NOT NULL UNIQUE, " +
                     "${DiseaseInfoDBEntry.COLUMN_DESCRIPTION} TEXT NOT NULL)"
 
+        // --- 5. DiseasePrecautionDB 생성 SQL (추가됨) ---
+        private const val SQL_CREATE_DISEASEPRECAUTIONDB =
+            "CREATE TABLE ${DiseasePrecautionDBEntry.TABLE_NAME} (" +
+                    "${BaseColumns._ID} INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "${DiseasePrecautionDBEntry.COLUMN_DISEASE_NAME} TEXT NOT NULL UNIQUE, " +
+                    "${DiseasePrecautionDBEntry.COLUMN_PRECAUTION_1} TEXT, " +
+                    "${DiseasePrecautionDBEntry.COLUMN_PRECAUTION_2} TEXT, " +
+                    "${DiseasePrecautionDBEntry.COLUMN_PRECAUTION_3} TEXT, " +
+                    "${DiseasePrecautionDBEntry.COLUMN_PRECAUTION_4} TEXT)"
+
     }
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("PRAGMA foreign_keys=ON;")
@@ -110,9 +129,13 @@ class DatabaseHelper(private val context: Context) :
         db.execSQL(SQL_CREATE_HEALTHRECORDDB)
         db.execSQL(SQL_CREATE_AIRESULTDB)
         db.execSQL(SQL_CREATE_DISEASEINFODB)
+        db.execSQL(SQL_CREATE_DISEASEPRECAUTIONDB)
 
         // CSV 데이터를 신규 테이블로 사전 로드하는 함수 호출
         preloadDiseaseInfo(db)
+
+        // 예방책 CSV 로드 함수 호출
+        preloadDiseasePrecaution(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -120,6 +143,7 @@ class DatabaseHelper(private val context: Context) :
         db.execSQL("DROP TABLE IF EXISTS ${HealthRecordDBEntry.TABLE_NAME}")
         db.execSQL("DROP TABLE IF EXISTS ${UserDBEntry.TABLE_NAME}")
         db.execSQL("DROP TABLE IF EXISTS ${DiseaseInfoDBEntry.TABLE_NAME}")
+        db.execSQL("DROP TABLE IF EXISTS ${DiseasePrecautionDBEntry.TABLE_NAME}")
 
         // 테이블 재생성
         onCreate(db)
@@ -174,6 +198,55 @@ class DatabaseHelper(private val context: Context) :
             db.endTransaction()
             reader.close()
             inputStream.close()
+        }
+    }
+
+    // 예방책 CSV 파일을 읽어 DB에 저장하는 함수
+    private fun preloadDiseasePrecaution(db: SQLiteDatabase) {
+        val inputStream = context.resources.openRawResource(R.raw.symptom_precaution)
+        val reader = BufferedReader(InputStreamReader(inputStream, "UTF-8"))
+
+        try {
+            db.beginTransaction()
+
+            reader.readLine() // 헤더 건너뛰기
+
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                val tokens = line!!.split(",")
+
+                if (tokens.isNotEmpty()) {
+                    val diseaseName = tokens[0].trim()
+
+                    // 배열 크기를 체크하여 안전하게 데이터 가져오기
+                    val p1 = if (tokens.size > 1) tokens[1].trim() else ""
+                    val p2 = if (tokens.size > 2) tokens[2].trim() else ""
+                    val p3 = if (tokens.size > 3) tokens[3].trim() else ""
+                    val p4 = if (tokens.size > 4) tokens[4].trim() else ""
+
+                    val values = ContentValues().apply {
+                        put(DiseasePrecautionDBEntry.COLUMN_DISEASE_NAME, diseaseName)
+                        put(DiseasePrecautionDBEntry.COLUMN_PRECAUTION_1, p1)
+                        put(DiseasePrecautionDBEntry.COLUMN_PRECAUTION_2, p2)
+                        put(DiseasePrecautionDBEntry.COLUMN_PRECAUTION_3, p3)
+                        put(DiseasePrecautionDBEntry.COLUMN_PRECAUTION_4, p4)
+                    }
+
+                    db.insertWithOnConflict(DiseasePrecautionDBEntry.TABLE_NAME, null, values,
+                        SQLiteDatabase.CONFLICT_IGNORE)
+                }
+            }
+            db.setTransactionSuccessful()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            db.endTransaction()
+            try {
+                reader.close()
+                inputStream.close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }

@@ -23,6 +23,7 @@ class AnalysisResultActivity : AppCompatActivity() {
     private lateinit var textViewSymptomStatus: TextView
     private lateinit var textViewSolution: TextView
     private lateinit var buttonConfirm: Button
+    private lateinit var textViewAnalysisResult: TextView
 
     private var currentRecordId: Long = -1
     private var currentUserId: Long = -1
@@ -43,6 +44,7 @@ class AnalysisResultActivity : AppCompatActivity() {
         textViewDiseaseDesc = findViewById(R.id.textViewDiseaseDesc)
         textViewSymptomStatus = findViewById(R.id.textViewSymptomStatus)
         textViewSolution = findViewById(R.id.textViewSolution)
+        textViewAnalysisResult = findViewById(R.id.textViewAnalysisResult)
         buttonConfirm = findViewById(R.id.buttonConfirm)
 
         // --- 2. Intent에서 전달받은 데이터 확인 ---
@@ -138,7 +140,8 @@ class AnalysisResultActivity : AppCompatActivity() {
 
         // --- 7. 조회한 모든 정보로 TextView 업데이트 ---
         analysisResultTitle.text = finalDiagnosis // AI가 예측한 최종 진단명
-        textViewDiseaseDesc.text = "AI 예측 결과: $cnnResult\n\n$diseaseDescription" // AI 결과와 CSV 설명 결합
+        textViewAnalysisResult.text = "AI 예측: $cnnResult" // AI 결과와
+        textViewDiseaseDesc.text = diseaseDescription // CSV 설명 결합
         textViewSolution.text = feedback // AI 예측에 따른 피드백
 
 
